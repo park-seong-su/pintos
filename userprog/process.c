@@ -42,7 +42,6 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
-	char *name;
 	char *save_ptr;
 
 	/* Make a copy of FILE_NAME.
@@ -53,9 +52,9 @@ process_create_initd (const char *file_name) {
 	strlcpy (fn_copy, file_name, PGSIZE);
 
 	/* Create a new thread to execute FILE_NAME. */
-	name = strtok_r(file_name, " ", &save_ptr);	
+	strtok_r(file_name, " ", &save_ptr);
+	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	//tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
-	tid = thread_create (name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -180,37 +179,17 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
-	/* file_name parsing */
-	char *token, *save_ptr;
-	char *argv[128];
-	int argc;
-	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
-		argv[argc++] = token;
-	}
-
 	/* And then load the binary */
-	//success = load (file_name, &_if);
-	success = load (argv[0], &_if);
+	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
-	//palloc_free_page (file_name);
-	palloc_free_page (argv[0]);
+	palloc_free_page (file_name);
 	if (!success)
 		return -1;
-
-	/* setup stack */
-	argument_stack(argc, argv, &_if);
-	hex_dump(_if.rsp, _if.rsp, KERN_BASE - _if.rsp, true);
 
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
-}
-
-void argument_stack(int argc, char **argv, struct intr_frame *if_) {
-	//here start!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	// implement ppt 33p picture !!!!!!!!!!!!!!!!!!!
-	printf("argument_stack function call!!\n");
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -227,7 +206,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while (1) {}
+	for (int i = 0; i < 10000000; i++) {}
 	return -1;
 }
 
@@ -352,15 +331,24 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
-		
+
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
 	if (t->pml4 == NULL)
 		goto done;
 	process_activate (thread_current ());
-
+	
+	/* file_name parsing */
+	char *token, *save_ptr;
+	char *argv[128];
+	int argc;
+	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+		argv[argc++] = token;
+	}
+	
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	//file = filesys_open (file_name);
+	file = filesys_open (argv[0]);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -422,7 +410,7 @@ load (const char *file_name, struct intr_frame *if_) {
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
 					if (!load_segment (file, file_page, (void *) mem_page,
-								read_bytes, zero_bytes, writable))
+								read_bytes, zero_bytes, writable)) 
 						goto done;
 				}
 				else
@@ -440,6 +428,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	argument_stack(argc, argv, &if_);
 
 	success = true;
 
@@ -447,6 +436,10 @@ done:
 	/* We arrive here whether the load is successful or not. */
 	file_close (file);
 	return success;
+}
+
+void argument_stack (int argc, char** argv, struct intr_frame *if_) {
+	printf("argument_stack function call!!!\n");
 }
 
 /* Checks whether PHDR describes a valid, loadable segment in

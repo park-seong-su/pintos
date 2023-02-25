@@ -698,18 +698,21 @@ uint64_t get_min_wakeup_tick(void) {
 }
 
 void thread_preemption(void) {
-	enum intr_level old_level;
+	//enum intr_level old_level;
 	int max_priority;
 
-	old_level = intr_disable();
+	//old_level = intr_disable();
 	if (!list_empty (&ready_list)) {
 		max_priority = list_entry(list_front(&ready_list), struct thread, elem)->priority;
 		if (thread_current()->priority < max_priority) {
-			intr_set_level (old_level);
-			thread_yield();
+			//intr_set_level (old_level);
+			//thread_yield();
+			if (!intr_context()) {
+				thread_yield();
+			}
 		}
 	}
-	intr_set_level (old_level);
+	//intr_set_level (old_level);
 }
 
 bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux) {
