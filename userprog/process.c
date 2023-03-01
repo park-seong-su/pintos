@@ -206,7 +206,8 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	for (int i = 0; i < 10000000; i++) {}
+	//for (int i = 0; i < 10000000; i++) {}
+	while(1) { }
 	return -1;
 }
 
@@ -341,7 +342,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* file_name parsing */
 	char *token, *save_ptr;
 	char *argv[128];
-	int argc;
+	int argc = 0;
 	for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
 		argv[argc++] = token;
 	}
